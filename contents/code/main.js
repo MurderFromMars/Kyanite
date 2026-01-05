@@ -299,6 +299,52 @@ function onDesktopSwitch(oldDesktop)
 
 /*****  Main part *****/
 
+function resetDesktopsToMinimum()
+{
+	let desktops = compat.workspaceDesktops();
+
+	while (desktops.length > MIN_DESKTOPS)
+	{
+		const idx = desktops.length - 2; // never remove the last one directly
+		if (!removeDesktop(idx))
+		{
+			break;
+		}
+		desktops = compat.workspaceDesktops();
+	}
+}
+
+// Run once on script load (login)
+resetDesktopsToMinimum();
+
+
+// Adding or removing a client might create desktops.
+// For all existing clients:
+compat.windowList(workspace).forEach(onClientAdded);
+// And for all future clients:
+compat.windowAddedSignal(workspace).connect(onClientAdded);
+
+// Switching desktops might remove desktops
+workspace.currentDesktopChanged.connect(onDesktopSwitch);/*****  Main part *****/
+
+function resetDesktopsToMinimum()
+{
+	let desktops = compat.workspaceDesktops();
+
+	while (desktops.length > MIN_DESKTOPS)
+	{
+		const idx = desktops.length - 2; // never remove the last one directly
+		if (!removeDesktop(idx))
+		{
+			break;
+		}
+		desktops = compat.workspaceDesktops();
+	}
+}
+
+// Run once on script load (login)
+resetDesktopsToMinimum();
+
 
 // Adding or removing a client might create desktops.
 // For all existing clients:
