@@ -1,0 +1,23 @@
+{ "KPackageStructure": "KWin/Script"
+, "KPlugin":
+    { "Authors":
+        [ { "Email": "marsuvees224@gmail.com"
+          , "Name": "MurderFromMars"
+          }
+        ]
+    , "Description": "True Gnome Style Workspace Management"
+    , "Icon": "preferences-system-windows-script-test"
+    , "Id": "better_dynamic_workspaces"
+    , "License": "BSD"
+    , "Name": "Better Dynamic Workspaces"
+    , "Version": "1.0"
+    }
+, "X-KDE-PluginKeyword": "workspaces"
+
+, "X-Plasma-API": "javascript"
+, "X-Plasma-API-Minimum-Version": "6.0"
+
+, "X-KDE-Library": "kwin/effects/configs/kcm_kwin4_genericscripted"
+, "X-Plasma-MainScript": "code/main.js"
+, "X-KDE-ConfigModule": "kwin/effects/configs/kcm_kwin4_genericscripted"
+}
