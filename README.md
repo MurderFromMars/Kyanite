@@ -1,51 +1,95 @@
-# Dynamic Workspaces
 
-A kwin script that creates and deletes desktops as you move windows on the last one.
+# Better Dynamic Workspaces (Plasma 6 Edition)
 
-I intented to replicate some of gnome-desktop's behavior with moving windows around.
-As this is a simple script for satisfying my needs,
-it only workds horizontally left-toright.
-What I did is this:
+A modernized, Plasma‑6‑native fork of the original **dynamic_workspaces** KWin script.  
+This version focuses on predictable desktop ordering, GNOME‑like dynamic workspace behavior, and a simplified, Plasma‑6‑only codebase.
 
-- There is always an empty desktop on the right
-- When you move a window to that desktop, a new desktop is created
-- When you move window away from last desktop, or close the window,
-  the desktop is destroyed
+---
 
-Version 3.1 tested on Plasma versions from 5.27 to 6.2.5. For versions tested
-since 5.6, see releases `1.*`, latest found
-[here](https://github.com/d86leader/dynamic_workspaces/releases/tag/v1.0.1)
+## Why This Fork Exists ⚙️
 
-## Installation
+The original project by **maurges** introduced a clever and lightweight approach to dynamic workspaces on KDE. It worked well for its time and inspired this fork.  
+However, because it was designed during the Plasma 5 era, it carried several limitations under Plasma 6:
 
-On plasma 6:
+- A mixed Plasma 5/6 compatibility layer made the logic harder to maintain.  
+- Desktop numbering could become inconsistent after multiple add/remove cycles.  
+- All desktops from the previous session were restored on startup, sometimes out of sequence.  
+- The user could start on an arbitrary desktop rather than a predictable one.  
 
-``` bash
-git clone https://github.com/d86leader/dynamic_workspaces.git
-cd dynamic_workspaces
-kpackagetool6 --type KWin/Script --install .
-```
+These issues were natural consequences of evolving APIs rather than flaws in the original design.  
+This fork builds on the original idea while modernizing the implementation for Plasma 6.
 
-On plasma 5, instead of the last line:
+---
 
-```sh
-plasmapkg2 --type kwinscript -i .
-```
+## Key Improvements ✨
 
-Then you might need to restart kwin. Do this by either logging out and back in, or by running `kwin_wayland --replace` in krunner.
+### Plasma 6‑Only Codebase  
+By removing Plasma 5 support, the script now uses Plasma 6’s native virtual desktop API directly.  
+This eliminates legacy workarounds and results in:
 
-### Upgrade
+- Cleaner, more maintainable logic  
+- More reliable multi‑desktop window handling  
+- Better integration with Plasma 6’s desktop model  
 
-If updating, change the `plasmapkg2`/`kpackagetool6` command above to the following:
+---
 
-``` bash
-# plasma 6
-kpackagetool6 --type KWin/Script --upgrade .
-# plasma 5
-plasmapkg2 --type kwinscript -u .
-```
+### Proper Desktop Renumbering 🔢  
+Desktops are always sequential (`Desktop 1, Desktop 2, Desktop 3…`) with no gaps or stale IDs.  
+This keeps the pager and internal ordering consistent — something the original script couldn’t guarantee due to Plasma 5 limitations.
 
-## Known issues
+---
 
-This script doesn't live well with other scripts that create workspaces.
-Mix at your own risk!
+## GNOME‑Style Behavior 🖥️
+
+This fork maintains all dynamic workspace features from the original script but fixes the startup behavior to match GNOME more closely:
+
+- Always start with **two** desktops  
+- Always begin on **Desktop 1**  
+
+The original script restored every desktop from the previous session and placed the user on whichever desktop they last used. Under Plasma 6, this could lead to cluttered or inconsistent startup states.
+
+This fork ensures a clean, minimal workspace layout that grows only as needed.
+
+---
+
+### Modernized Logic and Structure 🧹  
+The codebase has been streamlined by removing:
+
+- Deprecated APIs  
+- Plasma 5 emulation layers  
+- Complex shifting logic required by older KWin behavior  
+
+Replaced with:
+
+- Direct Plasma 6 desktop objects  
+- Clear add/remove rules  
+- More reliable animation handling  
+
+---
+
+## Comparison 📊
+
+| Feature | Original | This Fork |
+|--------|----------|-----------|
+| Plasma 5 support | Yes | No |
+| Plasma 6 support | Partial | Full |
+| Startup desktops | Restores all | Always 2 |
+| Startup focus | Last used | Desktop 1 |
+| Desktop renumbering | No | Yes |
+| Dynamic behavior | Basic | GNOME‑like |
+| Code complexity | Higher | Reduced |
+
+---
+
+## License (MIT) 📄
+
+This fork switches from BSD‑3‑Clause to the MIT License.  
+MIT is simpler, widely used in the Linux/KDE ecosystem, and more approachable for contributors while remaining fully permissive.
+
+---
+
+## Credits 🙏
+
+This project is based on the original work by **maurges**, whose script established the foundation for dynamic workspaces on KDE.  
+This fork updates that vision for Plasma 6 while keeping the spirit of the original project intact.
+
