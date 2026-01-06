@@ -14,7 +14,7 @@ However, because it was designed during the Plasma 5 era, and even now continues
 
 - A mixed Plasma 5/6 compatibility layer made the logic harder to maintain.  
 - Desktop numbering becomes inconsistent after multiple add/remove cycles.  
-- All desktops from the previous session were restored on startup, sometimes out of sequence.  
+- All desktops from the previous session were restored on startup, compounding the above problem
 - The user could start on an arbitrary desktop rather than a predictable one.  
 
 These issues were natural consequences of evolving APIs rather than flaws in the original design.  
