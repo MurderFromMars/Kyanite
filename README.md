@@ -10,7 +10,7 @@ In pursuit of this vision, this fork has dropped Plasma 5 support
 ## Why This Fork Exists ⚙️
 
 The original project by **maurges** introduced a clever and lightweight approach to dynamic workspaces on KDE. It worked well for its time and inspired this fork.  
-However, because it was designed during the Plasma 5 era, and continues support for Plasma 5,  it carried several limitations under Plasma 6:
+However, because it was designed during the Plasma 5 era, and even now continues support for Plasma 5,  it carries several limitations under Plasma 6:
 
 - A mixed Plasma 5/6 compatibility layer made the logic harder to maintain.  
 - Desktop numbering could become inconsistent after multiple add/remove cycles.  
