@@ -13,7 +13,7 @@ The original project by **maurges** introduced a clever and lightweight approach
 However, because it was designed during the Plasma 5 era, and even now continues support for Plasma 5,  it carries several limitations under Plasma 6:
 
 - A mixed Plasma 5/6 compatibility layer made the logic harder to maintain.  
-- Desktop numbering could become inconsistent after multiple add/remove cycles.  
+- Desktop numbering becomes inconsistent after multiple add/remove cycles.  
 - All desktops from the previous session were restored on startup, sometimes out of sequence.  
 - The user could start on an arbitrary desktop rather than a predictable one.  
 
