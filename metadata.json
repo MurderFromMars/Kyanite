@@ -8,7 +8,7 @@
     , "Description": "True Gnome Style Workspace Management"
     , "Icon": "preferences-system-windows-script-test"
     , "Id": "better_dynamic_workspaces"
-    , "License": "BSD"
+    , "License": "MIT"
     , "Name": "Better Dynamic Workspaces"
     , "Version": "1.0"
     }
