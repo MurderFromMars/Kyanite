@@ -1,4 +1,4 @@
-// Better Dynamic Workspaces — Plasma 6 Edition
+// Better Dynamic Workspaces
 
 const MIN_DESKTOPS = 2;
 const LOG_LEVEL = 2; // 0 verbose, 1 debug, 2 normal
