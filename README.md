@@ -80,7 +80,7 @@ The script ensures a clean and consistent session start:
 
 - Always begins on Desktop 1  
 - Always starts with exactly two desktops  
-- Avoids Plasma’s default session‑restore clutter  
+- Avoids Plasma’s default session restore clutter  
 
 
 
