@@ -1,4 +1,4 @@
-// Better Dynamic Workspaces — Plasma 6 Edition
+// Better Dynamic Workspaces
 
 const MIN_DESKTOPS = 2;
 const LOG_LEVEL = 2; // 0 verbose, 1 debug, 2 normal
@@ -69,14 +69,10 @@ function renumberDesktops() {
 		const desktops = compat.workspaceDesktops();
 		const current = desktops[i];
 
-		// If the desktop object is not actually at index i, rebuild it
 		if (desktops.indexOf(current) !== i) {
-
-			// Create a new desktop at the end
 			compat.addDesktop();
 			const newDesk = compat.lastDesktop();
 
-			// Move windows from old desktop to new one
 			compat.windowList(workspace).forEach(client => {
 				if (compat.clientOnDesktop(client, current)) {
 					const newList = compat.clientDesktops(client)
@@ -85,7 +81,6 @@ function renumberDesktops() {
 				}
 			});
 
-			// Remove the old desktop
 			compat.deleteLastDesktop();
 		}
 	}
@@ -261,3 +256,10 @@ compat.windowList(workspace).forEach(onClientAdded);
 compat.windowAddedSignal(workspace).connect(onClientAdded);
 
 workspace.currentDesktopChanged.connect(onDesktopSwitch);
+
+/******** Force Login to Always Start on Desktop 1 ********/
+
+callLater(() => {
+	const ds = compat.workspaceDesktops();
+	workspace.currentDesktop = ds[0];
+});
