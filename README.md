@@ -1,110 +1,34 @@
-
-
 # Better Dynamic Workspaces
 
-*A Plasma 6 native reimagining of the original **dynamic_workspaces** script created by **maurges**.*
+This project brings the full GNOME dynamic workspace experience to Plasma by reimagining dynamic_workspaces for Plasma 6. It provides predictable workspace ordering, GNOME accurate behavior, and a streamlined Plasma 6 native codebase built on the original work by maurges.
 
-This fork modernizes the original concept for Plasma 6, delivering predictable desktop ordering, GNOME‑like dynamic workspace behavior, and a clean, maintainable codebase.
+# Purpose of This Fork
 
+The original script was created for Plasma 5, which used different APIs and session handling rules. Plasma 6 introduced new desktop management behavior, new virtual desktop APIs, and a different approach to session restoration. These changes made the original design harder to maintain and led to issues such as inconsistent numbering, restored clutter from previous sessions, and unpredictable startup desktops.
 
+This fork focuses exclusively on Plasma 6 and rebuilds the concept around its modern architecture. The goal is to deliver a stable, predictable, GNOME style dynamic workspace system that behaves consistently across sessions and window events.
 
-# Why This Fork Exists ⚙️
-
-The original dynamic_workspaces pioneered dynamic workspaces on KDE.  
-However, it was designed for Plasma 5, and Plasma 6 introduced new APIs and behaviors that made certain patterns harder to maintain.
-
-Under Plasma 6, the original script could encounter:
-
-- Inconsistent desktop numbering after repeated add/remove cycles  
-- All previous session desktops being restored on startup  
-- The user starting on an arbitrary desktop  
-- Increased complexity from supporting both Plasma 5 and 6  
-
-This fork rebuilds the idea with a Plasma 6 first approach, dropping Plasma 5 support in favor of producing a cleaner, more predictable, and more GNOME‑accurate experience.
-
-
-
-# Key Features ✨
+# Key Features
 
 ## Plasma 6 Native Codebase
-This fork uses Plasma 6’s virtual desktop API directly, resulting in:
+The script uses Plasma 6’s virtual desktop API directly. This removes the need for compatibility layers and allows the logic to be simpler, more reliable, and easier to maintain. Window events, desktop creation, and desktop removal all use Plasma 6’s native structures.
 
-- Cleaner, more maintainable logic  
-- More reliable multi‑desktop window handling  
-- No legacy compatibility layers  
+## GNOME Style Dynamic Workspace Model
+The workspace lifecycle follows the GNOME approach. The session always begins with two desktops. The user always starts on Desktop 1. A new desktop is created only when the last one becomes occupied. Empty desktops are removed automatically, and the final desktop is always kept empty. This creates a self maintaining layout that grows and shrinks naturally based on activity.
 
+## Unified Cleanup System
+The original project used direction based cleanup and shifted windows to earlier desktops to maintain order. Plasma 6 made this approach less reliable. This fork replaces it with a single cleanup pass that runs after any structural change. It removes empty desktops, ensures the last desktop remains empty, and keeps the layout free of gaps. The cleanup is direction agnostic and does not shift windows, which makes the behavior consistent and predictable.
 
-
-## GNOME‑Style Dynamic Workspace Model 🖥️
-
-The workspace lifecycle now mirrors GNOME’s behavior:
-
-- Always start with **two** desktops  
-- Always begin on **Desktop 1**  
-- A new desktop is created only when a window occupies the last one  
-- Empty desktops are removed automatically  
-- The last desktop is always kept empty  
-
-This ensures a minimal, self‑maintaining workspace layout.
-
-
-
-# Unified Cleanup System
-
-The original project relied on a **direction based “shift left” cleanup behavior**, where empty desktops were removed only when switching left, and windows were shifted to earlier desktop indices to maintain order.  
-While clever, this approach became brittle under Plasma 6 and introduced unnecessary complexity.
-
-This fork replaces that system with a **single GNOME accurate cleanup pass** that is:
-
-- **Direction agnostic** — cleanup runs regardless of navigation direction  
-- **Append only** — no shifting windows left, no index rewrites  
-- **Gap free** — all empty desktops except the last are removed  
-- **Stable** — the last desktop is always kept empty  
-- **Consistent** — cleanup runs after every structural change  
-
-By removing the shift left logic entirely, the workspace lifecycle becomes deterministic, predictable, and far easier to maintain.
-
-
-
-## Consistent Desktop Renumbering 🔢
-Desktops are always sequential:
-
-**Desktop 1 → Desktop 2 → Desktop 3 → …**
-
-Renumbering is automatic, robust, and keeps the pager and internal ordering consistent.
-
-
+## Consistent Desktop Renumbering
+Desktops are always kept in sequential order. Renumbering happens automatically whenever desktops are added or removed. This keeps the pager, window manager, and internal logic aligned at all times.
 
 ## Predictable Startup Behavior
-The script ensures a clean and consistent session start:
+The script ensures that every session begins in a clean state. The user always starts on Desktop 1. The session always begins with exactly two desktops. Plasma’s session restore behavior is bypassed so that old desktops are not recreated automatically.
 
-- Always begins on Desktop 1  
-- Always starts with exactly two desktops  
-- Avoids Plasma’s default session restore clutter  
+## Modernized Logic and Structure
+The codebase removes Plasma 5 compatibility, deprecated APIs, direction dependent cleanup, and window shifting. It replaces them with direct Plasma 6 desktop objects, a unified cleanup pass, clear rules for adding and removing desktops, animation guarding, and an append only lifecycle. The result is a smaller, clearer, and more maintainable script.
 
-
-
-## Modernized Logic and Structure 🧹
-
-The codebase removes:
-
-- Deprecated APIs  
-- Plasma 5 compatibility logic  
-- Direction dependent cleanup  
-- Middle desktop deletion rules  
-- Index shifting window movement  
-
-Replaced with:
-
-- Direct Plasma 6 desktop objects  
-- A unified cleanup pass  
-- Clear add/remove rules  
-- Reliable animation guarding  
-- A simple, append‑only workspace lifecycle  
-
-
-
-# Comparison With the Original Project 📊
+# Comparison With the Original Project
 
 | Feature | Original Project (maurges) | This Fork |
 |--------|-----------------------------|-----------|
@@ -114,19 +38,17 @@ Replaced with:
 | Startup focus | Last used desktop | Always Desktop 1 |
 | Desktop renumbering | No | Yes, always sequential |
 | Dynamic behavior | Basic | GNOME like |
-| Cleanup model | Direction‑based, shift left logic | Unified GNOME style cleanup |
-| Workspace lifecycle | Mixed rules | Strictly append‑only |
+| Cleanup model | Direction based shift left logic | Unified GNOME style cleanup |
+| Workspace lifecycle | Mixed rules | Strictly append only |
 | Code complexity | Higher | Reduced, Plasma 6 only |
 | Window shifting | Required | Removed |
 | Session consistency | Variable | Deterministic |
 
+# License
 
+This fork maintains the BSD 3 license of the original project with proper attribution.
 
-# License (BSD3) 📄
-This fork maintains the BSD3 licnese of the original project with proper attributions on both sides 
+# Credits
 
+Inspired by and built upon the original dynamic_workspaces by maurges, whose work established dynamic workspaces on KDE.
 
-# Credits 🙏
-
-This project is inspired by and builds upon the original **dynamic_workspaces** script created by **maurges**.  
-Their work established the foundation for dynamic workspaces on KDE, 
