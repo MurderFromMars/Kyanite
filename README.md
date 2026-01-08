@@ -1,6 +1,5 @@
-# Better Dynamic Workspaces
-
-This fork aims to bring the full GNOME dynamic workspace experience to Plasma   
+### Better Dynamic Workspaces
+---
 
 # Purpose of This Fork
 
