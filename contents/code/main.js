@@ -1,9 +1,9 @@
-// Better Dynamic Workspaces  
+// Kyanite – Dynamic Workspaces for Plasma 6
 
-const MIN_DESKTOPS = 2;
-const LOG_LEVEL = 2; // 0 verbose, 1 debug, 2 normal
+const MIN_DESKTOPS = 1;   // ← NEW: allow Plasma to start with exactly 1 desktop
+const LOG_LEVEL = 2;
 
-function log(...args) { print("[better_dynamic_ws]", ...args); }
+function log(...args) { print("[kyanite]", ...args); }
 function debug(...args) { if (LOG_LEVEL <= 1) log(...args); }
 function trace(...args) { if (LOG_LEVEL <= 0) log(...args); }
 
@@ -20,8 +20,6 @@ const compat = {
 	windowList: ws => ws.windowList(),
 
 	desktopChangedSignal: client => client.desktopsChanged,
-
-	toDesktop: d => d,
 
 	workspaceDesktops: () => workspace.desktops,
 
@@ -49,44 +47,14 @@ const compat = {
 		}
 	},
 
-	findDesktop: (list, d) => list.indexOf(d),
-
 	clientDesktops: c => c.desktops,
-
 	setClientDesktops: (c, ds) => { c.desktops = ds; },
-
 	clientOnDesktop: (c, d) => c.desktops.indexOf(d) !== -1,
 
 	desktopAmount: () => workspace.desktops.length,
 };
 
-/******** Desktop Renumbering ********/
-
-function renumberDesktops() {
-	let count = compat.desktopAmount();
-
-	for (let i = 0; i < count; i++) {
-		const desktops = compat.workspaceDesktops();
-		const current = desktops[i];
-
-		if (desktops.indexOf(current) !== i) {
-			compat.addDesktop();
-			const newDesk = compat.lastDesktop();
-
-			compat.windowList(workspace).forEach(client => {
-				if (compat.clientOnDesktop(client, current)) {
-					const newList = compat.clientDesktops(client)
-					.map(d => (d === current ? newDesk : d));
-					compat.setClientDesktops(client, newList);
-				}
-			});
-
-			compat.deleteLastDesktop();
-		}
-	}
-}
-
-/******** GNOME‑Accurate Cleanup ********/
+/******** Desktop State Helpers ********/
 
 function desktopIsEmpty(idx) {
 	const d = compat.workspaceDesktops()[idx];
@@ -101,54 +69,80 @@ function desktopIsEmpty(idx) {
 			return false;
 		}
 	}
-
 	return true;
 }
 
-function removeDesktop(idx) {
-	const count = compat.desktopAmount();
-	if (count - 1 <= idx) return false;
-	if (count <= MIN_DESKTOPS) return false;
+/******** Compaction ********/
 
-	compat.windowList(workspace).forEach(c => {
-		const cds = compat.clientDesktops(c);
-		const all = compat.workspaceDesktops();
-		const updated = cds.map(d => {
-			const i = all.indexOf(d);
-			return i > idx ? all[i - 1] : d;
-		});
-		compat.setClientDesktops(c, updated);
-	});
-
-	compat.deleteLastDesktop();
-	renumberDesktops();
-	return true;
-}
-
-/******** Unified GNOME Cleanup ********/
-
-function enforceGnomeModel() {
+function compactFromEnd() {
 	if (animationGuard) return;
 
 	animationGuard = true;
 	try {
-		const all = compat.workspaceDesktops();
-		const lastIdx = all.length - 1;
+		const desktops = compat.workspaceDesktops();
+		const lastIdx = desktops.length - 1;
 
-		// Remove all empty desktops except the last one
+		// Remove empty desktops except the last one
 		for (let i = lastIdx - 1; i >= 0; i--) {
+			if (compat.desktopAmount() <= MIN_DESKTOPS) break;
+
 			if (desktopIsEmpty(i)) {
-				removeDesktop(i);
+				shiftWindowsDown(i);
+				compat.deleteLastDesktop();
 			}
 		}
 
-		// Ensure last desktop is empty
-		const newLastIdx = compat.desktopAmount() - 1;
-		if (!desktopIsEmpty(newLastIdx)) {
-			compat.addDesktop();
+		// Ensure last desktop is empty — but only if we have >1 desktops
+		const count = compat.desktopAmount();
+		if (count > 1) {
+			const newLastIdx = count - 1;
+			if (!desktopIsEmpty(newLastIdx)) {
+				compat.addDesktop();
+			}
 		}
 
-		renumberDesktops();
+	} finally {
+		animationGuard = false;
+	}
+}
+
+function shiftWindowsDown(idx) {
+	const desktops = compat.workspaceDesktops();
+
+	compat.windowList(workspace).forEach(c => {
+		const cds = compat.clientDesktops(c);
+		const updated = cds.map(d => {
+			const i = desktops.indexOf(d);
+			return i > idx ? desktops[i - 1] : d;
+		});
+		compat.setClientDesktops(c, updated);
+	});
+}
+
+/******** Index‑Preserving Wrapper ********/
+
+function compactPreservingIndex() {
+	if (animationGuard) return;
+
+	const desktops = compat.workspaceDesktops();
+	const current = workspace.currentDesktop;
+	const oldIndex = desktops.indexOf(current);
+
+	compactFromEnd();
+
+	if (oldIndex === -1) return;
+
+	const newDesktops = compat.workspaceDesktops();
+	if (!newDesktops.length) return;
+
+	const targetIndex = Math.min(oldIndex, newDesktops.length - 1);
+	const target = newDesktops[targetIndex];
+
+	if (!target || target === workspace.currentDesktop) return;
+
+	animationGuard = true;
+	try {
+		workspace.currentDesktop = target;
 	} finally {
 		animationGuard = false;
 	}
@@ -157,83 +151,53 @@ function enforceGnomeModel() {
 /******** Core Behavior ********/
 
 function handleClientDesktopChange(client) {
+	// If a client moves to the last desktop, create a new one
 	if (compat.clientOnDesktop(client, compat.lastDesktop())) {
 		compat.addDesktop();
-		renumberDesktops();
 	}
-	enforceGnomeModel();
+
+	compactPreservingIndex();
 }
 
 function onClientAdded(client) {
 	if (!client || client.skipPager) return;
 
+	// If the first window appears on the only desktop → create the empty one
 	if (compat.clientOnDesktop(client, compat.lastDesktop())) {
 		compat.addDesktop();
-		renumberDesktops();
 	}
 
 	compat.desktopChangedSignal(client).connect(() => {
 		handleClientDesktopChange(client);
 	});
 
-	enforceGnomeModel();
+	compactPreservingIndex();
 }
 
 /******** Initialization ********/
 
-function trimToMinimum() {
-	while (compat.desktopAmount() > MIN_DESKTOPS) {
-		try {
-			compat.deleteLastDesktop();
-		} catch (err) {
-			break;
-		}
-	}
-}
-
-trimToMinimum();
-
+// NEW: Start with exactly 1 desktop, no forced creation
 (function setupInitialDesktops() {
 	const ds = compat.workspaceDesktops();
 	workspace.currentDesktop = ds[0];
 
-	while (compat.desktopAmount() > MIN_DESKTOPS) {
-		try {
-			compat.deleteLastDesktop();
-		} catch (err) {
-			break;
-		}
-	}
-
-	if (compat.desktopAmount() < MIN_DESKTOPS) {
+	// If Plasma somehow starts with 0 desktops (rare), fix it
+	if (compat.desktopAmount() < 1) {
 		compat.addDesktop();
 	}
-
-	renumberDesktops();
 })();
+
+/******** Connect Signals ********/
 
 compat.windowList(workspace).forEach(onClientAdded);
 compat.windowAddedSignal(workspace).connect(onClientAdded);
-workspace.windowRemoved.connect(() => enforceGnomeModel());
 
-workspace.currentDesktopChanged.connect(() => enforceGnomeModel());
-
-// Startup redirect to enforce GNOME behavior.... might not be needed anymore tbh XD 
-let initialRedirectDone = false;
-workspace.currentDesktopChanged.connect(function () {
-	if (initialRedirectDone) return;
-	initialRedirectDone = true;
-
-	const all = compat.workspaceDesktops();
-	const currIdx = compat.findDesktop(all, workspace.currentDesktop);
-
-	if (currIdx === 1) {
-		animationGuard = true;
-		try {
-			workspace.currentDesktop = all[0];
-		} finally {
-			animationGuard = false;
-		}
-	}
+// Compaction on window close
+workspace.windowRemoved.connect(() => {
+	compactPreservingIndex();
 });
 
+// Compaction on workspace switch
+workspace.currentDesktopChanged.connect(() => {
+	compactPreservingIndex();
+});
