@@ -1,90 +1,102 @@
-
 # Kyanite | Smart Dynamic Workspace Management for Plasma 6
 
-Kyanite is a dynamic workspace script for KDE Plasma 6 designed to create a clean, predictable, and truly adaptive workspace environment. It was built to complement Krohnkite and to push Plasma closer to the behavior of a real dynamic tiling window manager rather than a traditional desktop with automation layered on top.
+A Plasma 6 ready KWin script that delivers intelligent, self maintaining virtual desktops. Kyanite creates new desktops when you need them, removes empty ones when you don’t, and keeps your workspace numbering stable and predictable.
 
-The core idea is simple: workspaces should appear only when they are needed, disappear when they are no longer useful, and never break the user’s spatial or mental model in the process.
+## Overview
 
----
+Kyanite transforms KDE Plasma’s virtual desktops into a fluid, adaptive workspace. Instead of manually adding or removing desktops, you simply work and Kyanite handles the rest.
 
-## Why Kyanite Exists
+It ensures:
 
-The original dynamic workspace script by Maurges introduced the concept of maintaining an empty desktop, but its behavior often conflicted with tiling workflows. Desktops could shift unexpectedly, cleanup routines sometimes moved the user to a different workspace, and Plasma frequently started with more desktops than necessary. There was no system for managing startup behavior, preserving indices, or ensuring a stable workspace model.
+- A new empty desktop always exists at the end
+- Empty desktops are automatically removed
+- Windows shift downward to fill gaps
+- Your current desktop index is preserved during cleanup
+- The system never drops below one desktop
 
-Kyanite was created to address these issues directly. It reimagines dynamic workspaces from a tiling‑first perspective, emphasizing index stability, minimalism, and continuous automatic cleanup. The result is a calmer, more intentional workflow that pairs naturally with Krohnkite.
+The result is a clean, infinite feeling workspace that expands and contracts based on your actual usage.
 
----
+## Features
 
-## Design Philosophy
+### Automatic Desktop Creation
+Whenever a window lands on the last desktop, Kyanite instantly creates a new one after it. You always have room to keep working.
 
-Kyanite is built around a few guiding principles:
+### Automatic Desktop Compaction
+Kyanite continuously monitors for empty desktops and removes them, but only from the end of the list. This prevents gaps and keeps the desktop list tidy.
 
-- Workspaces should be created only in response to real usage, not preemptively.
-- There should be exactly one empty workspace when expansion is needed, and none when it is not.
-- Workspace indices should remain stable so muscle memory and spatial awareness are never disrupted.
-- Automatic behavior should be invisible. The system should feel steady, not reactive.
+### Intelligent Window Shifting
+When a desktop is removed, windows on higher indexed desktops shift down one position to maintain a clean sequence.
 
-These principles mirror the behavior of dedicated tiling window managers and form the foundation of Kyanite’s design.
+### Index Preserving Behavior
+If compaction occurs while you are working, Kyanite keeps you on the same numbered desktop whenever possible.
 
----
+### Plasma 6 Compatibility Layer
+A dedicated compatibility wrapper normalizes Plasma 6 API differences, ensuring:
 
-## Key Improvements Over Upstream
+- Consistent desktop creation and removal
+- Reliable window list access
+- Stable signal handling
+- Safe client desktop reassignment
 
-### Plasma 6 Focused Architecture
+### Animation Safe Execution
+An internal animationGuard prevents recursive calls and avoids KWin animation glitches or event storms.
 
-Kyanite targets Plasma 6 exclusively. By removing Plasma 5 compatibility layers and legacy abstractions, the codebase becomes simpler, cleaner, and more reliable. This reduces edge cases and ensures behavior aligns with modern Plasma internals.
+## How It Works
 
-### True Dynamic Workspace Behavior
+### Desktop Monitoring
+Kyanite listens to:
 
-Workspaces are created only when a window actually occupies the last available desktop. Empty workspaces are removed automatically when they no longer serve a purpose. At most, one empty workspace is maintained at the end, and only when it is needed.
+- windowAdded
+- windowRemoved
+- desktopsChanged
+- currentDesktopChanged
+- Per client desktopsChanged
 
-This creates a more natural, dynamic growth and culling system.
+### Window Tracking
+For each window, Kyanite checks:
 
-### Index Preserving Compaction
+- Which desktop it belongs to
+- Whether it sits on the last desktop
+- Whether its movement should trigger desktop creation
 
-One of Kyanite’s most important features is index preserving compaction. When empty desktops are removed, the user’s current workspace index is preserved whenever possible. Cleanup never moves the user unexpectedly.
+### Empty Desktop Detection
+A desktop is considered empty if:
 
-This is essential for tiling workflows where spatial consistency matters.
+- No windows are assigned to it
+- Windows on it are not skipPager
+- Windows are not onAllDesktops
 
-### Minimal Startup State
+### Compaction Logic
+When cleaning up:
 
-Kyanite allows Plasma to start with exactly one desktop. No additional workspaces are created unless they are actually needed. The second workspace appears only when the first window layout requires expansion.
+1. Iterate backward through desktops
+2. Identify empty desktops
+3. Shift windows down to fill gaps
+4. Remove the last desktop
+5. Ensure at least one desktop remains
+6. Ensure the last desktop is always empty
 
-This resolves Plasma’s messy startup behavior that the original script left untouched.
-
-### Continuous Automatic Maintenance
-
-Workspace compaction and correction happen continuously and automatically. Cleanup is triggered on window creation, window removal, desktop switches, and client desktop changes. The workspace layout remains accurate at all times without manual intervention.
-
-### Animation Safe Desktop Removal
-
-Kyanite includes safeguards to work around Plasma 6 animation quirks when removing desktops. This ensures workspace transitions remain smooth and visually consistent, avoiding broken or skipped animations.
-
-### Designed for Krohnkite
-
-Kyanite is built with Krohnkite in mind. Stable workspace indices integrate naturally with tiled layouts. Automatic expansion supports workspace‑per‑context workflows. Cleanup logic avoids disrupting tiling state.
-
-Together, Kyanite and Krohnkite create a workflow that feels much closer to a true dynamic tiling window manager than Plasma’s default behavior.
-
----
+### Index Preservation
+Before compaction, Kyanite records your current desktop index.  
+After compaction, it restores you to the same index whenever possible.
 
 ## Manual Desktop Manipulation
 
-Kyanite is designed to manage workspaces automatically. Manual creation or removal of desktops in Plasma behaves in ways that Kyanite cannot safely track or correct.
+Kyanite is designed to manage virtual desktops automatically. When desktops are created or removed manually, Plasma behaves in ways that Kyanite cannot safely track or correct.
 
 ### Manual Desktop Removal
-Removing a desktop manually causes Plasma to renumber desktops before Kyanite receives any signals. This can lead to:
+Removing a desktop manually through the Overview, Pager, shortcuts, or System Settings causes Plasma to renumber desktops before Kyanite receives any signals. This can result in:
 
-- Incorrect desktop numbering  
-- Unexpected compaction behavior  
+- Incorrect desktop numbering
+- Unexpected compaction behavior
 
-Kyanite will continue running, but the layout may become temporarily inconsistent.
+Kyanite will continue running, but the workspace layout may become temporarily inconsistent.
 
 ### Manual Desktop Addition
 Adding desktops manually is even more disruptive. Plasma may insert new desktops at unpredictable positions, and when Kyanite later compacts or when you switch desktops:
 
-- KWin can crash due to mismatched internal indices  
-- The desktop list may become unstable until Plasma restarts  
+- KWin can crash due to mismatched internal indices
+- The desktop list may become unstable until Plasma restarts
 
 Manual addition is strongly discouraged.
 
@@ -94,20 +106,21 @@ KWin scripting cannot block or override manual desktop creation or removal. If u
 ### No Workarounds
 Any workaround for these issues would be hack like in nature and would come at a high cost to stability and functionality. After extensive investigation, there is simply no way to fix manual desktop manipulation without making the script objectively worse. For this reason, any issues opened about problems caused by manual desktop manipulation will be ignored and closed.
 
----
+## Stability Notes
 
-## Summary
+Kyanite is designed to be:
 
-Kyanite is not a cosmetic fork or a minor tweak. It is a behavioral rewrite focused on delivering a cohesive, predictable dynamic workspace model for Plasma 6.
+- Non recursive
+- Animation safe
+- Plasma compatible
+- Resistant to race conditions
 
-It provides stable index preserving behavior, minimal startup state, continuous automatic cleanup, and seamless integration with Krohnkite. For users who treat Plasma as a tiling environment rather than a traditional desktop, Kyanite offers a cleaner, more intentional way to manage workspaces.
+The animationGuard ensures that transitions never trigger nested compaction or desktop switching loops.
 
----
+## Credit and Inspiration
 
-## Credits
+Kyanite began life as a fork of dynamic_workspaces by Maurges, a project that explored similar ideas around adaptive virtual desktops. Seeking to improve the experience the codebase has evolved so much  that remaining a fork no longer makes sense. The logic, structure, and behavior have change to the point where Kyanite has become its own distinct project. with virutally none of the origiinal code remaining, and so this brings me to this project being relicensed,
 
-Kyanite began as a fork of the original dynamic workspace script by Maurges. Their work laid the foundation for dynamic workspaces in Plasma. Kyanite quickly diverged so significantly that remaining a fork no longer made sense, and it is now maintained as a standalone project.
+## License
 
-## License (GPL 3.0)
-
-Kyanite is distributed under the GNU General Public License v3.0.
+Kyanite is now distributed under the GNU General Public License v3.0.
