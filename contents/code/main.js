@@ -1,6 +1,19 @@
-// Kyanite – Dynamic Workspaces for Plasma 6
+//Kyanite - Dynamic Workspace Management for Plasma 6
+//Copyright (C) 2026 MurderFromMars
 
-const MIN_DESKTOPS = 1;   // ← NEW: allow Plasma to start with exactly 1 desktop
+//This program is free software: you can redistribute it and/or modify
+//it under the terms of the GNU General Public License version 3 as
+//published by the Free Software Foundation.
+
+//This program is distributed in the hope that it will be useful,
+//but WITHOUT ANY WARRANTY; without even the implied warranty of
+//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+//GNU General Public License for more details.
+//You should have received a copy of the GNU General Public License
+//along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+
+const MIN_DESKTOPS = 1;
 const LOG_LEVEL = 2;
 
 function log(...args) { print("[kyanite]", ...args); }
@@ -23,25 +36,37 @@ const compat = {
 
 	workspaceDesktops: () => workspace.desktops,
 
-	lastDesktop: () => workspace.desktops[workspace.desktops.length - 1],
+	lastDesktop: () => {
+		const ds = workspace.desktops;
+		return ds.length ? ds[ds.length - 1] : null;
+	},
 
 	deleteLastDesktop: () => {
 		try {
 			animationGuard = true;
 
 			const desktops = workspace.desktops;
+			if (!desktops.length) return;
+
 			const last = desktops[desktops.length - 1];
+			if (!last) return;
+
 			const current = workspace.currentDesktop;
+			if (!current) return;
+
 			const idx = desktops.indexOf(current);
 
 			const fallback =
-			idx + 1 < desktops.length || idx === -1
+			(idx + 1 < desktops.length || idx === -1)
 			? desktops[idx + 1]
 			: current;
 
-			workspace.currentDesktop = fallback;
+			if (fallback) workspace.currentDesktop = fallback;
+
 			workspace.removeDesktop(last);
-			workspace.currentDesktop = current;
+
+			if (current) workspace.currentDesktop = current;
+
 		} finally {
 			animationGuard = false;
 		}
@@ -49,7 +74,7 @@ const compat = {
 
 	clientDesktops: c => c.desktops,
 	setClientDesktops: (c, ds) => { c.desktops = ds; },
-	clientOnDesktop: (c, d) => c.desktops.indexOf(d) !== -1,
+	clientOnDesktop: (c, d) => d && c.desktops.indexOf(d) !== -1,
 
 	desktopAmount: () => workspace.desktops.length,
 };
@@ -57,10 +82,15 @@ const compat = {
 /******** Desktop State Helpers ********/
 
 function desktopIsEmpty(idx) {
-	const d = compat.workspaceDesktops()[idx];
+	const desktops = compat.workspaceDesktops();
+	const d = desktops[idx];
+	if (!d) return true;
+
 	const clients = compat.windowList(workspace);
 
 	for (const c of clients) {
+		if (!c.desktops || !c.desktops.length) continue;
+
 		if (
 			compat.clientOnDesktop(c, d) &&
 			!c.skipPager &&
@@ -82,7 +112,6 @@ function compactFromEnd() {
 		const desktops = compat.workspaceDesktops();
 		const lastIdx = desktops.length - 1;
 
-		// Remove empty desktops except the last one
 		for (let i = lastIdx - 1; i >= 0; i--) {
 			if (compat.desktopAmount() <= MIN_DESKTOPS) break;
 
@@ -92,7 +121,6 @@ function compactFromEnd() {
 			}
 		}
 
-		// Ensure last desktop is empty — but only if we have >1 desktops
 		const count = compat.desktopAmount();
 		if (count > 1) {
 			const newLastIdx = count - 1;
@@ -110,11 +138,13 @@ function shiftWindowsDown(idx) {
 	const desktops = compat.workspaceDesktops();
 
 	compat.windowList(workspace).forEach(c => {
-		const cds = compat.clientDesktops(c);
-		const updated = cds.map(d => {
+		if (!c.desktops || !c.desktops.length) return;
+
+		const updated = c.desktops.map(d => {
 			const i = desktops.indexOf(d);
 			return i > idx ? desktops[i - 1] : d;
 		});
+
 		compat.setClientDesktops(c, updated);
 	});
 }
@@ -126,6 +156,8 @@ function compactPreservingIndex() {
 
 	const desktops = compat.workspaceDesktops();
 	const current = workspace.currentDesktop;
+	if (!current) return;
+
 	const oldIndex = desktops.indexOf(current);
 
 	compactFromEnd();
@@ -142,7 +174,7 @@ function compactPreservingIndex() {
 
 	animationGuard = true;
 	try {
-		workspace.currentDesktop = target;
+		if (target) workspace.currentDesktop = target;
 	} finally {
 		animationGuard = false;
 	}
@@ -151,8 +183,12 @@ function compactPreservingIndex() {
 /******** Core Behavior ********/
 
 function handleClientDesktopChange(client) {
-	// If a client moves to the last desktop, create a new one
-	if (compat.clientOnDesktop(client, compat.lastDesktop())) {
+	if (!client.desktops || !client.desktops.length) return;
+
+	const last = compat.lastDesktop();
+	if (!last) return;
+
+	if (compat.clientOnDesktop(client, last)) {
 		compat.addDesktop();
 	}
 
@@ -161,9 +197,10 @@ function handleClientDesktopChange(client) {
 
 function onClientAdded(client) {
 	if (!client || client.skipPager) return;
+	if (!client.desktops || !client.desktops.length) return;
 
-	// If the first window appears on the only desktop → create the empty one
-	if (compat.clientOnDesktop(client, compat.lastDesktop())) {
+	const last = compat.lastDesktop();
+	if (last && compat.clientOnDesktop(client, last)) {
 		compat.addDesktop();
 	}
 
@@ -176,12 +213,10 @@ function onClientAdded(client) {
 
 /******** Initialization ********/
 
-// NEW: Start with exactly 1 desktop, no forced creation
 (function setupInitialDesktops() {
 	const ds = compat.workspaceDesktops();
-	workspace.currentDesktop = ds[0];
+	if (ds.length && ds[0]) workspace.currentDesktop = ds[0];
 
-	// If Plasma somehow starts with 0 desktops (rare), fix it
 	if (compat.desktopAmount() < 1) {
 		compat.addDesktop();
 	}
@@ -192,12 +227,10 @@ function onClientAdded(client) {
 compat.windowList(workspace).forEach(onClientAdded);
 compat.windowAddedSignal(workspace).connect(onClientAdded);
 
-// Compaction on window close
 workspace.windowRemoved.connect(() => {
 	compactPreservingIndex();
 });
 
-// Compaction on workspace switch
 workspace.currentDesktopChanged.connect(() => {
 	compactPreservingIndex();
 });
