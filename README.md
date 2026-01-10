@@ -108,8 +108,9 @@ KWin scripting cannot block or override manual desktop creation or removal. If u
 ### No Workarounds
 Any workaround for these issues would be hack like in nature and would come at a high cost to stability and functionality. After extensive investigation, there is simply no way to fix manual desktop manipulation without making the script objectively worse. For this reason, any issues opened about problems caused by manual desktop manipulation will be ignored and closed.
 
-**Addtional Note**
-Multimonitor Support should be fine, I have a single display setup, so it remains untested however, plasma handles workspaces globally and my script doesn't interfere with that. Theoretically it should work identically with your desktop list being shared across multiple monitors. 
+### Additional Note
+
+Multi‑monitor setups should work without issues. I only have a single‑display system to test on, but Plasma manages virtual desktops globally and this script doesn’t alter that behavior. In theory, it should function the same across multiple monitors since all screens share the same desktop list.
 
 ---
 
