@@ -120,4 +120,4 @@ Kyanite began life as a fork of dynamic_workspaces by Maurges, a project that ex
 
 ## License
 
-Kyanite is now distributed under the GNU General Public License v3.0.
+Kyanite is now distributed under the MIT licnese 
