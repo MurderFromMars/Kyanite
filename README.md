@@ -95,12 +95,7 @@ Removing a desktop manually through the Overview, Pager, shortcuts, or System Se
 Kyanite will continue running, but the workspace layout may become temporarily inconsistent.
 
 ### Manual Desktop Addition
-Adding desktops manually is even more disruptive. Plasma may insert new desktops at unpredictable positions, and when Kyanite later compacts or when you switch desktops:
-
-- KWin can crash due to mismatched internal indices
-- The desktop list may become unstable until Plasma restarts
-
-Manual addition is strongly discouraged.
+Adding desktops manually will work but the script will remove any extra empty desktops on the next compaction event
 
 ### No Interception Possible
 KWin scripting cannot block or override manual desktop creation or removal. If users manipulate desktops themselves, Kyanite cannot guarantee correct behavior.
