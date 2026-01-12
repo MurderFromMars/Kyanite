@@ -97,8 +97,6 @@ Kyanite will continue running, but the workspace layout may become temporarily i
 ### Manual Desktop Addition
 Adding desktops manually will work but the script will remove any extra empty desktops on the next compaction event
 
-### No Interception Possible
-KWin scripting cannot block or override manual desktop creation or removal. If users manipulate desktops themselves, Kyanite cannot guarantee correct behavior.
 
 ### No Workarounds
 Any workaround for these issues would be hack like in nature and would come at a high cost to stability and functionality. After extensive investigation, there is simply no way to fix manual desktop manipulation without making the script objectively worse. For this reason, any issues opened about problems caused by manual desktop manipulation will be ignored and closed.
@@ -106,6 +104,10 @@ Any workaround for these issues would be hack like in nature and would come at a
 ### Additional Note
 
 Multi‑monitor setups should work without issues. I only have a single‑display system to test on, but Plasma manages virtual desktops globally and this script doesn’t alter that behavior. In theory, it should function the same across multiple monitors since all screens share the same desktop list.
+
+---
+
+Kyanite is not written to work with X11, (which handles desktop objects, completely differently) so, in the name of keeping things simple this project is **Wayland only**
 
 ---
 
