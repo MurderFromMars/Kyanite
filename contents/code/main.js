@@ -189,8 +189,6 @@ function onClientAdded(client) {
 		handleClientDesktopChange(client);
 	});
 
-	// Removed:
-	// compactPreservingIndex();
 }
 
 /******** Initialization ********/
