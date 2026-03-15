@@ -1,4 +1,4 @@
-// Kyanite | Smart dynamic workspace management for Plasma 6
+// Kyanite | Smart dynamic workspace management for Plasma 6 
 
 const MIN_DESKTOPS = 1;
 const LOG_LEVEL = 2;
@@ -8,13 +8,19 @@ function debug(...args) { if (LOG_LEVEL <= 1) log(...args); }
 function trace(...args) { if (LOG_LEVEL <= 0) log(...args); }
 
 let animationGuard = false;
-let isDragging = false;   // <--- NEW GUARD FLAG
+let isDragging = false;
 
-/******** Plasma 6 Compatibility Layer ********/
+
+let pendingNewDesktop = new Set();
+
+
+let lastDesktopTrigger = new WeakMap();
+
+
 
 const compat = {
     addDesktop: () => {
-        if (isDragging) return;  // <--- BLOCK DURING DRAG
+        if (isDragging) return; 
         workspace.createDesktop(workspace.desktops.length, undefined);
     },
 
@@ -31,7 +37,7 @@ const compat = {
     },
 
     deleteLastDesktop: () => {
-        if (isDragging) return;  // <--- BLOCK DURING DRAG
+        if (isDragging) return; 
 
         try {
             animationGuard = true;
@@ -72,7 +78,7 @@ const compat = {
     desktopAmount: () => workspace.desktops.length,
 };
 
-/******** Drag Detection (NEW) ********/
+
 
 workspace.windowStartUserMoved.connect(() => {
     isDragging = true;
@@ -80,10 +86,17 @@ workspace.windowStartUserMoved.connect(() => {
 
 workspace.windowFinishUserMoved.connect(() => {
     isDragging = false;
-    compactPreservingIndex();  // <--- SAFE TO RUN AFTER DRAG ENDS
+
+
+    if (pendingNewDesktop.size > 0) {
+        compat.addDesktop();
+        pendingNewDesktop.clear();
+    }
+
+    compactPreservingIndex();
 });
 
-/******** Desktop State Helpers ********/
+
 
 function desktopIsEmpty(idx) {
     const desktops = compat.workspaceDesktops();
@@ -106,10 +119,10 @@ function desktopIsEmpty(idx) {
     return true;
 }
 
-/******** Compaction ********/
+
 
 function compactFromEnd() {
-    if (animationGuard || isDragging) return;  // <--- BLOCK DURING DRAG
+    if (animationGuard || isDragging) return;
 
     animationGuard = true;
     try {
@@ -131,7 +144,7 @@ function compactFromEnd() {
 }
 
 function shiftWindowsDown(idx) {
-    if (isDragging) return;  // <--- BLOCK DURING DRAG
+    if (isDragging) return;
 
     const desktops = compat.workspaceDesktops();
 
@@ -147,10 +160,10 @@ function shiftWindowsDown(idx) {
     });
 }
 
-/******** Index‑Preserving Wrapper ********/
+
 
 function compactPreservingIndex() {
-    if (animationGuard || isDragging) return;  // <--- BLOCK DURING DRAG
+    if (animationGuard || isDragging) return;
 
     const desktops = compat.workspaceDesktops();
     const current = workspace.currentDesktop;
@@ -172,36 +185,52 @@ function compactPreservingIndex() {
 
     animationGuard = true;
     try {
-        if (target) workspace.currentDesktop = target;
+        workspace.currentDesktop = target;
     } finally {
         animationGuard = false;
     }
 }
 
-/******** Core Behavior ********/
 
 function handleClientDesktopChange(client) {
-    if (isDragging) return;  // <--- BLOCK DURING DRAG
     if (!client.desktops || !client.desktops.length) return;
 
     const last = compat.lastDesktop();
     if (!last) return;
 
-    if (compat.clientOnDesktop(client, last)) {
-        compat.addDesktop();
+    const onLast = compat.clientOnDesktop(client, last);
+
+    if (onLast) {
+        if (isDragging) {
+            // Queue for after drag ends
+            pendingNewDesktop.add(client);
+        } else {
+            // Safe to add immediately
+            if (!lastDesktopTrigger.get(client)) {
+                compat.addDesktop();
+            }
+        }
+        lastDesktopTrigger.set(client, true);
+    } else {
+        lastDesktopTrigger.set(client, false);
     }
 
-    compactPreservingIndex();
+    if (!isDragging) {
+        compactPreservingIndex();
+    }
 }
 
 function onClientAdded(client) {
-    if (isDragging) return;  // <--- BLOCK DURING DRAG
     if (!client || client.skipPager) return;
     if (!client.desktops || !client.desktops.length) return;
 
     const last = compat.lastDesktop();
     if (last && compat.clientOnDesktop(client, last)) {
-        compat.addDesktop();
+        if (isDragging) {
+            pendingNewDesktop.add(client);
+        } else {
+            compat.addDesktop();
+        }
     }
 
     compat.desktopChangedSignal(client).connect(() => {
@@ -209,7 +238,7 @@ function onClientAdded(client) {
     });
 }
 
-/******** Initialization ********/
+
 
 (function setupInitialDesktops() {
     const ds = compat.workspaceDesktops();
@@ -220,7 +249,7 @@ function onClientAdded(client) {
     }
 })();
 
-/******** Connect Signals ********/
+
 
 compat.windowList(workspace).forEach(onClientAdded);
 compat.windowAddedSignal(workspace).connect(onClientAdded);
