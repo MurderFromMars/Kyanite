@@ -8,198 +8,216 @@ function debug(...args) { if (LOG_LEVEL <= 1) log(...args); }
 function trace(...args) { if (LOG_LEVEL <= 0) log(...args); }
 
 let animationGuard = false;
+let isDragging = false;   // <--- NEW GUARD FLAG
 
 /******** Plasma 6 Compatibility Layer ********/
 
 const compat = {
-	addDesktop: () => {
-		workspace.createDesktop(workspace.desktops.length, undefined);
-	},
+    addDesktop: () => {
+        if (isDragging) return;  // <--- BLOCK DURING DRAG
+        workspace.createDesktop(workspace.desktops.length, undefined);
+    },
 
-	windowAddedSignal: ws => ws.windowAdded,
-	windowList: ws => ws.windowList(),
+    windowAddedSignal: ws => ws.windowAdded,
+    windowList: ws => ws.windowList(),
 
-	desktopChangedSignal: client => client.desktopsChanged,
+    desktopChangedSignal: client => client.desktopsChanged,
 
-	workspaceDesktops: () => workspace.desktops,
+    workspaceDesktops: () => workspace.desktops,
 
-	lastDesktop: () => {
-		const ds = workspace.desktops;
-		return ds.length ? ds[ds.length - 1] : null;
-	},
+    lastDesktop: () => {
+        const ds = workspace.desktops;
+        return ds.length ? ds[ds.length - 1] : null;
+    },
 
-	deleteLastDesktop: () => {
-		try {
-			animationGuard = true;
+    deleteLastDesktop: () => {
+        if (isDragging) return;  // <--- BLOCK DURING DRAG
 
-			const desktops = workspace.desktops;
-			if (!desktops.length) return;
+        try {
+            animationGuard = true;
 
-			const last = desktops[desktops.length - 1];
-			if (!last) return;
+            const desktops = workspace.desktops;
+            if (!desktops.length) return;
 
-			const current = workspace.currentDesktop;
-			if (!current) return;
+            const last = desktops[desktops.length - 1];
+            if (!last) return;
 
-			const idx = desktops.indexOf(current);
+            const current = workspace.currentDesktop;
+            if (!current) return;
 
-			const fallback =
-			(idx + 1 < desktops.length || idx === -1)
-			? desktops[idx + 1]
-			: current;
+            const idx = desktops.indexOf(current);
 
-			if (fallback) workspace.currentDesktop = fallback;
+            const fallback =
+                (idx + 1 < desktops.length || idx === -1)
+                ? desktops[idx + 1]
+                : current;
 
-			workspace.removeDesktop(last);
+            if (fallback) workspace.currentDesktop = fallback;
 
-			if (current && current !== last) {
-				workspace.currentDesktop = current;
-			}
+            workspace.removeDesktop(last);
 
-		} finally {
-			animationGuard = false;
-		}
-	},
+            if (current && current !== last) {
+                workspace.currentDesktop = current;
+            }
 
-	clientDesktops: c => c.desktops,
-	setClientDesktops: (c, ds) => { c.desktops = ds; },
-	clientOnDesktop: (c, d) => d && c.desktops.indexOf(d) !== -1,
+        } finally {
+            animationGuard = false;
+        }
+    },
 
-	desktopAmount: () => workspace.desktops.length,
+    clientDesktops: c => c.desktops,
+    setClientDesktops: (c, ds) => { c.desktops = ds; },
+    clientOnDesktop: (c, d) => d && c.desktops.indexOf(d) !== -1,
+
+    desktopAmount: () => workspace.desktops.length,
 };
+
+/******** Drag Detection (NEW) ********/
+
+workspace.windowStartUserMoved.connect(() => {
+    isDragging = true;
+});
+
+workspace.windowFinishUserMoved.connect(() => {
+    isDragging = false;
+    compactPreservingIndex();  // <--- SAFE TO RUN AFTER DRAG ENDS
+});
 
 /******** Desktop State Helpers ********/
 
 function desktopIsEmpty(idx) {
-	const desktops = compat.workspaceDesktops();
-	const d = desktops[idx];
-	if (!d) return true;
+    const desktops = compat.workspaceDesktops();
+    const d = desktops[idx];
+    if (!d) return true;
 
-	const clients = compat.windowList(workspace);
+    const clients = compat.windowList(workspace);
 
-	for (const c of clients) {
-		if (!c.desktops || !c.desktops.length) continue;
+    for (const c of clients) {
+        if (!c.desktops || !c.desktops.length) continue;
 
-		if (
-			compat.clientOnDesktop(c, d) &&
-			!c.skipPager &&
-			!c.onAllDesktops
-		) {
-			return false;
-		}
-	}
-	return true;
+        if (
+            compat.clientOnDesktop(c, d) &&
+            !c.skipPager &&
+            !c.onAllDesktops
+        ) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /******** Compaction ********/
 
 function compactFromEnd() {
-	if (animationGuard) return;
+    if (animationGuard || isDragging) return;  // <--- BLOCK DURING DRAG
 
-	animationGuard = true;
-	try {
-		const desktops = compat.workspaceDesktops();
-		const lastIdx = desktops.length - 1;
+    animationGuard = true;
+    try {
+        const desktops = compat.workspaceDesktops();
+        const lastIdx = desktops.length - 1;
 
-		for (let i = lastIdx - 1; i >= 0; i--) {
-			if (compat.desktopAmount() <= MIN_DESKTOPS) break;
+        for (let i = lastIdx - 1; i >= 0; i--) {
+            if (compat.desktopAmount() <= MIN_DESKTOPS) break;
 
-			if (desktopIsEmpty(i)) {
-				shiftWindowsDown(i);
-				compat.deleteLastDesktop();
-			}
-		}
+            if (desktopIsEmpty(i)) {
+                shiftWindowsDown(i);
+                compat.deleteLastDesktop();
+            }
+        }
 
-	} finally {
-		animationGuard = false;
-	}
+    } finally {
+        animationGuard = false;
+    }
 }
 
 function shiftWindowsDown(idx) {
-	const desktops = compat.workspaceDesktops();
+    if (isDragging) return;  // <--- BLOCK DURING DRAG
 
-	compat.windowList(workspace).forEach(c => {
-		if (!c.desktops || !c.desktops.length) return;
+    const desktops = compat.workspaceDesktops();
 
-		const updated = c.desktops.map(d => {
-			const i = desktops.indexOf(d);
-			return i > idx ? desktops[i - 1] : d;
-		});
+    compat.windowList(workspace).forEach(c => {
+        if (!c.desktops || !c.desktops.length) return;
 
-		compat.setClientDesktops(c, updated);
-	});
+        const updated = c.desktops.map(d => {
+            const i = desktops.indexOf(d);
+            return i > idx ? desktops[i - 1] : d;
+        });
+
+        compat.setClientDesktops(c, updated);
+    });
 }
 
 /******** Index‑Preserving Wrapper ********/
 
 function compactPreservingIndex() {
-	if (animationGuard) return;
+    if (animationGuard || isDragging) return;  // <--- BLOCK DURING DRAG
 
-	const desktops = compat.workspaceDesktops();
-	const current = workspace.currentDesktop;
-	if (!current) return;
+    const desktops = compat.workspaceDesktops();
+    const current = workspace.currentDesktop;
+    if (!current) return;
 
-	const oldIndex = desktops.indexOf(current);
+    const oldIndex = desktops.indexOf(current);
 
-	compactFromEnd();
+    compactFromEnd();
 
-	if (oldIndex === -1) return;
+    if (oldIndex === -1) return;
 
-	const newDesktops = compat.workspaceDesktops();
-	if (!newDesktops.length) return;
+    const newDesktops = compat.workspaceDesktops();
+    if (!newDesktops.length) return;
 
-	const targetIndex = Math.min(oldIndex, newDesktops.length - 1);
-	const target = newDesktops[targetIndex];
+    const targetIndex = Math.min(oldIndex, newDesktops.length - 1);
+    const target = newDesktops[targetIndex];
 
-	if (!target || target === workspace.currentDesktop) return;
+    if (!target || target === workspace.currentDesktop) return;
 
-	animationGuard = true;
-	try {
-		if (target) workspace.currentDesktop = target;
-	} finally {
-		animationGuard = false;
-	}
+    animationGuard = true;
+    try {
+        if (target) workspace.currentDesktop = target;
+    } finally {
+        animationGuard = false;
+    }
 }
 
 /******** Core Behavior ********/
 
 function handleClientDesktopChange(client) {
-	if (!client.desktops || !client.desktops.length) return;
+    if (isDragging) return;  // <--- BLOCK DURING DRAG
+    if (!client.desktops || !client.desktops.length) return;
 
-	const last = compat.lastDesktop();
-	if (!last) return;
+    const last = compat.lastDesktop();
+    if (!last) return;
 
-	if (compat.clientOnDesktop(client, last)) {
-		compat.addDesktop();
-	}
+    if (compat.clientOnDesktop(client, last)) {
+        compat.addDesktop();
+    }
 
-	compactPreservingIndex();
+    compactPreservingIndex();
 }
 
 function onClientAdded(client) {
-	if (!client || client.skipPager) return;
-	if (!client.desktops || !client.desktops.length) return;
+    if (isDragging) return;  // <--- BLOCK DURING DRAG
+    if (!client || client.skipPager) return;
+    if (!client.desktops || !client.desktops.length) return;
 
-	const last = compat.lastDesktop();
-	if (last && compat.clientOnDesktop(client, last)) {
-		compat.addDesktop();
-	}
+    const last = compat.lastDesktop();
+    if (last && compat.clientOnDesktop(client, last)) {
+        compat.addDesktop();
+    }
 
-	compat.desktopChangedSignal(client).connect(() => {
-		handleClientDesktopChange(client);
-	});
-
+    compat.desktopChangedSignal(client).connect(() => {
+        handleClientDesktopChange(client);
+    });
 }
 
 /******** Initialization ********/
 
 (function setupInitialDesktops() {
-	const ds = compat.workspaceDesktops();
-	if (ds.length && ds[0]) workspace.currentDesktop = ds[0];
+    const ds = compat.workspaceDesktops();
+    if (ds.length && ds[0]) workspace.currentDesktop = ds[0];
 
-	if (compat.desktopAmount() < 1) {
-		compat.addDesktop();
-	}
+    if (compat.desktopAmount() < 1) {
+        compat.addDesktop();
+    }
 })();
 
 /******** Connect Signals ********/
@@ -208,5 +226,5 @@ compat.windowList(workspace).forEach(onClientAdded);
 compat.windowAddedSignal(workspace).connect(onClientAdded);
 
 workspace.windowRemoved.connect(() => {
-	compactPreservingIndex();
+    if (!isDragging) compactPreservingIndex();
 });
