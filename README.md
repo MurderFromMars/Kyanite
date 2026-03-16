@@ -101,7 +101,8 @@ Adding desktops manually will work but the script will remove any extra empty de
 
 Due to a Plasma Wayland issue, manipulating virtual desktops while a window drag is in progress could cause a full system hard lock. Kyanite now pauses all desktop operations during window drags and resumes once you release, resolving this as much as possible without a fix on KWin's end.
 Compaction checks have also been made more aggressive any workspace switch or new window will trigger a correction pass to keep things tidy.
-***Known caveat:*** if you drag the only window in a workspace directly to the final empty workspace, you may briefly end up with no trailing empty desktop and a gap in the middle. Kyanite will self-correct the moment you switch workspaces or open a new window. This edge case appears to be a Plasma quirk, as overview mode often won't even let you drag a workspace's last remaining window out in the first place. I myself typically only ever use overveiw to drag a window to a different workspace, which seems unaffected by this issue. 
+
+***Known caveat:*** if you drag the only window in a workspace directly to the final empty workspace, you may briefly end up with no trailing empty desktop and a gap in the middle. Kyanite will self-correct the moment you switch workspaces or open a new window. This edge case appears to be a Plasma quirk, as overview won't even let you drag a workspace's last remaining window out in the first place. 
 
 ### Additional Note
 
