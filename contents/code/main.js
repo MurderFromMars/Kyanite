@@ -7,7 +7,14 @@ function log(...args) { print("[kyanite]", ...args); }
 function debug(...args) { if (LOG_LEVEL <= 1) log(...args); }
 function trace(...args) { if (LOG_LEVEL <= 0) log(...args); }
 
-let animationGuard = false;
+
+let guardDepth = 0;
+
+
+let dragInProgress = false;
+
+
+const wiredClientIds = new Set();
 
 /******** Plasma 6 Compatibility Layer ********/
 
@@ -29,9 +36,8 @@ const compat = {
 	},
 
 	deleteLastDesktop: () => {
+		guardDepth++;
 		try {
-			animationGuard = true;
-
 			const desktops = workspace.desktops;
 			if (!desktops.length) return;
 
@@ -57,7 +63,7 @@ const compat = {
 			}
 
 		} finally {
-			animationGuard = false;
+			guardDepth--;
 		}
 	},
 
@@ -68,7 +74,6 @@ const compat = {
 	desktopAmount: () => workspace.desktops.length,
 };
 
-/******** Desktop State Helpers ********/
 
 function desktopIsEmpty(idx) {
 	const desktops = compat.workspaceDesktops();
@@ -91,12 +96,30 @@ function desktopIsEmpty(idx) {
 	return true;
 }
 
-/******** Compaction ********/
+/******** Trailing Desktop Invariant ********/
+
+
+function ensureTrailingEmpty() {
+	if (guardDepth > 0) return;
+
+	const desktops = compat.workspaceDesktops();
+	if (!desktops.length) return;
+
+	if (!desktopIsEmpty(desktops.length - 1)) {
+		guardDepth++;
+		try {
+			compat.addDesktop();
+		} finally {
+			guardDepth--;
+		}
+	}
+}
+
 
 function compactFromEnd() {
-	if (animationGuard) return;
+	if (guardDepth > 0) return;
 
-	animationGuard = true;
+	guardDepth++;
 	try {
 		const desktops = compat.workspaceDesktops();
 		const lastIdx = desktops.length - 1;
@@ -111,7 +134,7 @@ function compactFromEnd() {
 		}
 
 	} finally {
-		animationGuard = false;
+		guardDepth--;
 	}
 }
 
@@ -130,10 +153,10 @@ function shiftWindowsDown(idx) {
 	});
 }
 
-/******** Index‑Preserving Wrapper ********/
+
 
 function compactPreservingIndex() {
-	if (animationGuard) return;
+	if (dragInProgress || guardDepth > 0) return;
 
 	const desktops = compat.workspaceDesktops();
 	const current = workspace.currentDesktop;
@@ -153,42 +176,76 @@ function compactPreservingIndex() {
 
 	if (!target || target === workspace.currentDesktop) return;
 
-	animationGuard = true;
+	guardDepth++;
 	try {
-		if (target) workspace.currentDesktop = target;
+		workspace.currentDesktop = target;
 	} finally {
-		animationGuard = false;
+		guardDepth--;
 	}
 }
 
-/******** Core Behavior ********/
-
-function handleClientDesktopChange(client) {
-	if (!client.desktops || !client.desktops.length) return;
-
-	const last = compat.lastDesktop();
-	if (!last) return;
-
-	if (compat.clientOnDesktop(client, last)) {
-		compat.addDesktop();
-	}
-
+function reconcile() {
+	ensureTrailingEmpty();
 	compactPreservingIndex();
+}
+
+
+function handleClientDesktopChange() {
+	reconcile();
+}
+
+function onDragFinished() {
+	dragInProgress = false;
+	debug("drag finished, reconciling");
+
+	reconcile();
 }
 
 function onClientAdded(client) {
 	if (!client || client.skipPager) return;
 	if (!client.desktops || !client.desktops.length) return;
 
-	const last = compat.lastDesktop();
-	if (last && compat.clientOnDesktop(client, last)) {
-		compat.addDesktop();
+	reconcile();
+
+	const id = client.internalId;
+	if (!id || wiredClientIds.has(id)) return;
+	wiredClientIds.add(id);
+
+	if (client.interactiveMoveResizeStarted) {
+		client.interactiveMoveResizeStarted.connect(() => {
+			dragInProgress = true;
+		});
+	}
+	if (client.interactiveMoveResizeFinished) {
+		client.interactiveMoveResizeFinished.connect(() => {
+			onDragFinished();
+		});
 	}
 
 	compat.desktopChangedSignal(client).connect(() => {
-		handleClientDesktopChange(client);
+		handleClientDesktopChange();
 	});
 
+	if (client.windowClosed) {
+		client.windowClosed.connect(() => {
+			wiredClientIds.delete(id);
+		});
+	}
+}
+
+/******** Workspace-level drag signals ********/
+
+if (workspace.windowStartUserMovedResized) {
+	workspace.windowStartUserMovedResized.connect(_client => {
+		dragInProgress = true;
+		debug("drag started");
+	});
+}
+
+if (workspace.windowFinishUserMovedResized) {
+	workspace.windowFinishUserMovedResized.connect(_client => {
+		onDragFinished();
+	});
 }
 
 /******** Initialization ********/
@@ -209,4 +266,9 @@ compat.windowAddedSignal(workspace).connect(onClientAdded);
 
 workspace.windowRemoved.connect(() => {
 	compactPreservingIndex();
+});
+
+
+workspace.currentDesktopChanged.connect(() => {
+	reconcile();
 });
