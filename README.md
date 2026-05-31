@@ -1,5 +1,5 @@
 # Kyanite | Smart Dynamic Workspace Management for Plasma 6
-
+## THIS VERSION OF KYANITE ENFORCES AND SUPPORTS VERTICAL DESKTOP LAYOUT, IF YOU WANT A STANDARD HORIZONTAL LAYOUT USE THE MASTER BRANCH
 A Plasma 6 native KWin script that delivers intelligent, self maintaining virtual desktops. Kyanite creates new desktops when you need them, removes empty ones when you don’t, and keeps your workspace numbering stable and predictable.
 
 ## Overview
