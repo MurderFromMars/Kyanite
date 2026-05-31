@@ -21,6 +21,7 @@ const wiredClientIds = new Set();
 const compat = {
 	addDesktop: () => {
 		workspace.createDesktop(workspace.desktops.length, undefined);
+		updateRows();
 	},
 
 	windowAddedSignal: ws => ws.windowAdded,
@@ -57,6 +58,7 @@ const compat = {
 			if (fallback) workspace.currentDesktop = fallback;
 
 			workspace.removeDesktop(last);
+			updateRows();
 
 			if (current && current !== last) {
 				workspace.currentDesktop = current;
@@ -73,6 +75,13 @@ const compat = {
 
 	desktopAmount: () => workspace.desktops.length,
 };
+
+
+function updateRows() {
+	const count = workspace.desktops.length;
+	workspace.desktopGridHeight = count;
+	workspace.desktopGridWidth = 1;
+}
 
 
 function desktopIsEmpty(idx) {
